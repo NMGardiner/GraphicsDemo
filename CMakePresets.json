@@ -1,0 +1,79 @@
+{
+	"version": 6,
+	"cmakeMinimumRequired": {
+		"major": 3,
+		"minor": 26,
+		"patch": 0
+	},
+	"configurePresets": [
+		{
+			"name": "windows-common",
+			"hidden": true,
+			"condition": {
+				"type": "equals",
+				"lhs": "${hostSystemName}",
+				"rhs": "Windows"
+			},
+			"generator": "Visual Studio 17 2022",
+			"binaryDir": "${sourceDir}/out/build",
+			"installDir": "${sourceDir}/out/install",
+			"cacheVariables": {
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/out/build"
+			},
+			"environment": {
+				"WARNING_FLAGS": "/external:anglebrackets /external:W0 /W4",
+				"GENERAL_FLAGS": ""
+			},
+			"vendor": {
+				"microsoft.com/VisualStudioSettings/CMake/1.0": {
+					"hostOS": "Windows",
+					"enableMicrosoftCodeAnalysis": true
+				}
+			}
+		},
+		{
+			"name": "windows-debug",
+			"inherits": "windows-common",
+			"displayName": "Windows Debug",
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS_DEBUG_INIT": "$env{WARNING_FLAGS} $env{GENERAL_FLAGS} /fsanitize=address"
+			}
+		},
+		{
+			"name": "windows-release",
+			"inherits": "windows-common",
+			"displayName": "Windows Release",
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS_RELEASE_INIT": "$env{WARNING_FLAGS} $env{GENERAL_FLAGS}"
+			}
+		},
+		{
+			"name": "windows-relwithdebinfo",
+			"inherits": "windows-common",
+			"displayName": "Windows RelWithDebugInfo",
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS_RELWITHDEBINFO_INFO": "$env{WARNING_FLAGS} $env{GENERAL_FLAGS}"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "windows-debug",
+			"displayName": "Windows Debug",
+			"configurePreset": "windows-debug",
+			"configuration": "Debug"
+		},
+		{
+			"name": "windows-release",
+			"displayName": "Windows Release",
+			"configurePreset": "windows-release",
+			"configuration": "Release"
+		},
+		{
+			"name": "windows-relwithdebinfo",
+			"displayName": "Windows RelWithDebugInfo",
+			"configurePreset": "windows-relwithdebinfo",
+			"configuration": "RelWithDebInfo"
+		}
+	]
+}
