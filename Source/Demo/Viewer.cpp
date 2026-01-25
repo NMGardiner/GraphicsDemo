@@ -1,5 +1,8 @@
 #include "Demo/Viewer.hpp"
 
+// CoreLib
+#include "CoreLib/UtilMacros.hpp"
+
 // SDL
 #include "SDL3/SDL_events.h"
 #include "SDL3/SDL_init.h"
@@ -21,21 +24,21 @@ Viewer::Viewer() :
 	constexpr uint32_t kWindowHeight = 1440u;
 
 	bool result = SDL_Init(SDL_INIT_VIDEO);
-	assert(result);
+	CORE_ASSERT(result);
 
 	m_pWindow = SDL_CreateWindow(
 		"Graphics Demo",
 		static_cast<int>(kWindowWidth),
 		static_cast<int>(kWindowHeight),
 		SDL_WINDOW_VULKAN);
-	assert(m_pWindow != nullptr);
+	CORE_ASSERT_NOT_NULL(m_pWindow);
 }
 
 
 
 Viewer::~Viewer()
 {
-	assert(m_pWindow != nullptr);
+	CORE_ASSERT_NOT_NULL(m_pWindow);
 	SDL_DestroyWindow(m_pWindow);
 	SDL_Quit();
 }
