@@ -9,8 +9,26 @@
 	// TLDR: Avoids evaluation entirely, unlike (void)condition.
 	#define CORE_ASSERT(condition) do { (void)sizeof(condition); } while(0)
 #else
-	#include <cassert>
-	#define CORE_ASSERT(condition) do { assert(condition); } while(0)
+	#include "Logging.hpp"
+
+	#if _MSC_VER
+		#define CORE_HALT() __debugbreak()
+	#else
+		#include <cassert>
+
+		#define CORE_HALT() assert(false)
+	#endif // _MSV_VER
+
+	#define CORE_ASSERT(condition)									\
+		do															\
+		{															\
+			if (!(condition))										\
+			{														\
+				Core::LogError("Assertion failed: " #condition);	\
+				CORE_HALT();										\
+			}														\
+		}															\
+		while(0)
 #endif // NDEBUG
 
 #define CORE_ASSERT_NULL(ptr) CORE_ASSERT(ptr == nullptr)
