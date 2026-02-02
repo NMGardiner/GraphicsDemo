@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.26)
 
 project(CoreLib VERSION 0.0.0 LANGUAGES CXX)
 
-add_library(${PROJECT_NAME} STATIC "Source/CoreLib/UtilMacros.hpp")
+add_library(
+	${PROJECT_NAME}
+	STATIC
+	"Source/CoreLib/Logging.hpp"
+	"Source/CoreLib/UtilMacros.hpp")
 
 # CMake fails to determine the linker language when there's only a .hpp
 # file in the target sources, so help it out.
