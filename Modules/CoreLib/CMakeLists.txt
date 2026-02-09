@@ -5,7 +5,10 @@ project(CoreLib VERSION 0.0.0 LANGUAGES CXX)
 add_library(
 	${PROJECT_NAME}
 	STATIC
+	"Source/CoreLib/Logging.cpp"
 	"Source/CoreLib/Logging.hpp"
+	"Source/CoreLib/StringUtils.cpp"
+	"Source/CoreLib/StringUtils.hpp"
 	"Source/CoreLib/UtilMacros.hpp")
 
 # CMake fails to determine the linker language when there's only a .hpp
