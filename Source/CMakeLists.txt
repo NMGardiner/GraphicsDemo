@@ -1,9 +1,11 @@
 target_sources(
 	${PROJECT_NAME}
 	PRIVATE
-	main.cpp
-	Demo/Viewer.hpp
-	Demo/Viewer.cpp)
+	"main.cpp"
+	"Demo/Renderer.cpp"
+	"Demo/Renderer.hpp"
+	"Demo/Viewer.cpp"
+	"Demo/Viewer.hpp")
 
 target_include_directories(
 	${PROJECT_NAME}

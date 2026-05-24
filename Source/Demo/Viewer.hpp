@@ -1,6 +1,9 @@
 #ifndef GRAPHICSDEMO_VIEWER_HPP
 #define GRAPHICSDEMO_VIEWER_HPP
 
+// Project
+#include "Demo/Renderer.hpp"
+
 // CoreLib
 #include "CoreLib/UtilMacros.hpp"
 
@@ -26,8 +29,9 @@ public:
 
 private:
 	SDL_Window* m_pWindow;
+	Renderer* m_pRenderer;
 
-};
+}; // class Viewer
 
 } // namespace Demo
 

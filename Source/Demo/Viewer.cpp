@@ -1,5 +1,8 @@
 #include "Demo/Viewer.hpp"
 
+// Project
+#include "Demo/Renderer.hpp"
+
 // CoreLib
 #include "CoreLib/UtilMacros.hpp"
 
@@ -18,7 +21,8 @@ namespace Demo
 {
 
 Viewer::Viewer() :
-	m_pWindow(nullptr)
+	m_pWindow(nullptr),
+	m_pRenderer(nullptr)
 {
 	constexpr uint32_t kWindowWidth  = 2560u;
 	constexpr uint32_t kWindowHeight = 1440u;
@@ -32,12 +36,21 @@ Viewer::Viewer() :
 		static_cast<int>(kWindowHeight),
 		SDL_WINDOW_VULKAN);
 	CORE_ASSERT_NOT_NULL(m_pWindow);
+
+	SDL_WindowID windowProperties = SDL_GetWindowProperties(m_pWindow);
+	CORE_ASSERT(windowProperties != 0);
+
+	m_pRenderer = new Renderer(m_pWindow, windowProperties);
+	CORE_ASSERT_NOT_NULL(m_pRenderer);
 }
 
 
 
 Viewer::~Viewer()
 {
+	CORE_ASSERT_NOT_NULL(m_pRenderer);
+	delete m_pRenderer;
+
 	CORE_ASSERT_NOT_NULL(m_pWindow);
 	SDL_DestroyWindow(m_pWindow);
 	SDL_Quit();
@@ -70,6 +83,8 @@ void Viewer::EnterRunLoop()
 		}
 
 		// Update logic.
+
+		m_pRenderer->Draw();
 	}
 }
 
