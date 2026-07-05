@@ -1,6 +1,10 @@
 # D3D12
 target_link_libraries(${PROJECT_NAME} PRIVATE d3d12.lib dxgi.lib)
 
+# D3D12MemoryAllocator
+add_subdirectory(D3D12MemoryAllocator)
+target_link_libraries(${PROJECT_NAME} PRIVATE D3D12MemoryAllocator)
+
 # Dear ImGui
 target_sources(
 	${PROJECT_NAME}
