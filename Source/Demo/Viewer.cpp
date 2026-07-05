@@ -6,6 +6,10 @@
 // CoreLib
 #include "CoreLib/UtilMacros.hpp"
 
+// Dear ImGui
+#include "imgui.h"
+#include "imgui_impl_sdl3.h"
+
 // SDL
 #include "SDL3/SDL_events.h"
 #include "SDL3/SDL_init.h"
@@ -36,6 +40,13 @@ Viewer::Viewer() :
 		static_cast<int>(kWindowHeight),
 		SDL_WINDOW_VULKAN);
 	CORE_ASSERT_NOT_NULL(m_pWindow);
+
+	// Initialise the SDL3 Dear ImGui backend.
+	// TODO: Custom SDL3 backend too?
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	result = ImGui_ImplSDL3_InitForVulkan(m_pWindow);
+	CORE_ASSERT(result);
 
 	SDL_WindowID windowProperties = SDL_GetWindowProperties(m_pWindow);
 	CORE_ASSERT(windowProperties != 0);
@@ -68,6 +79,8 @@ void Viewer::EnterRunLoop()
 
 		while (SDL_PollEvent(&event))
 		{
+			ImGui_ImplSDL3_ProcessEvent(&event);
+
 			if (event.type == SDL_EVENT_QUIT)
 			{
 				recievedExitEvent = true;
@@ -83,6 +96,8 @@ void Viewer::EnterRunLoop()
 		}
 
 		// Update logic.
+
+		ImGui_ImplSDL3_NewFrame();
 
 		m_pRenderer->Draw();
 	}
