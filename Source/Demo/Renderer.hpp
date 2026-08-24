@@ -8,6 +8,9 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
+// D3D12MemoryAllocator
+#include "D3D12MemAlloc.h"
+
 // System Headers
 #include <array>
 #include <cstdint>
@@ -48,6 +51,7 @@ private:
 	ID3D12Debug1* m_pDebug;
 	IDXGIFactory6* m_pFactory;
 	ID3D12Device* m_pDevice;
+	D3D12MA::Allocator* m_pAllocator;
 	ID3D12CommandQueue* m_pCommandQueue;
 	IDXGISwapChain3* m_pSwapchain;
 	ID3D12DescriptorHeap* m_pRTVHeap;

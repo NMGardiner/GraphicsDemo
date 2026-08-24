@@ -9,6 +9,9 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
+// D3D12MemoryAllocator
+#include "D3D12MemAlloc.h"
+
 // SDL
 #include "SDL3/SDL_video.h"
 
@@ -27,6 +30,7 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 	: m_pDebug(nullptr)
 	, m_pFactory(nullptr)
 	, m_pDevice(nullptr)
+	, m_pAllocator(nullptr)
 	, m_pCommandQueue(nullptr)
 	, m_pSwapchain(nullptr)
 	, m_pRTVHeap(nullptr)
@@ -117,6 +121,18 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 		pAdapter,
 		D3D_FEATURE_LEVEL_12_0,
 		IID_PPV_ARGS(&m_pDevice));
+	CORE_ASSERT(SUCCEEDED(result));
+
+	const D3D12MA::ALLOCATOR_DESC allocatorDesc
+	{
+		.Flags = D3D12MA_RECOMMENDED_ALLOCATOR_FLAGS,
+		.pDevice = m_pDevice,
+		.PreferredBlockSize = 0,
+		.pAllocationCallbacks = nullptr,
+		.pAdapter = pAdapter
+	};
+
+	result = D3D12MA::CreateAllocator(&allocatorDesc, &m_pAllocator);
 	CORE_ASSERT(SUCCEEDED(result));
 
 	pAdapter->Release();
@@ -279,6 +295,7 @@ Renderer::~Renderer()
 	m_pRTVHeap->Release();
 	m_pSwapchain->Release();
 	m_pCommandQueue->Release();
+	m_pAllocator->Release();
 	m_pDevice->Release();
 	m_pFactory->Release();
 	m_pDebug->Release();
