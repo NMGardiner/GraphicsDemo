@@ -69,6 +69,9 @@ private:
 	ID3D12Fence* m_pFence;
 	HANDLE m_pFenceEvent;
 
+	ID3D12DescriptorHeap* m_pSRVHeap;
+	D3D12MA::Allocation* m_pImGuiFontTexture;
+
 	size_t m_frameNumber;
 
 }; // class Renderer

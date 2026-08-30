@@ -12,6 +12,9 @@
 // D3D12MemoryAllocator
 #include "D3D12MemAlloc.h"
 
+// Dear ImGui
+#include "imgui.h"
+
 // SDL
 #include "SDL3/SDL_video.h"
 
@@ -38,6 +41,8 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 	, m_swapchainRTVDescriptors({})
 	, m_frames({})
 	, m_pFence(nullptr)
+	, m_pSRVHeap(nullptr)
+	, m_pImGuiFontTexture(nullptr)
 	, m_frameNumber(0)
 {
 	HRESULT result = S_OK;
@@ -261,6 +266,194 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 	CORE_ASSERT(SUCCEEDED(result));
 
 	m_pFenceEvent = CreateEvent(nullptr, false, false, nullptr);
+
+	unsigned char* pFontTextureData;
+	int fontTextureWidth;
+	int fontTextureHeight;
+	ImGui::GetIO().Fonts->GetTexDataAsRGBA32(
+		&pFontTextureData,
+		&fontTextureWidth,
+		&fontTextureHeight);
+	CORE_ASSERT_NOT_NULL(pFontTextureData);
+
+	const D3D12_RESOURCE_DESC textureDesc
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = static_cast<UINT64>(fontTextureWidth),
+		.Height = static_cast<UINT>(fontTextureHeight),
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+		.SampleDesc = DXGI_SAMPLE_DESC
+		{
+			.Count = 1,
+			.Quality = 0
+		},
+		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		.Flags = D3D12_RESOURCE_FLAG_NONE
+	};
+
+	const D3D12MA::ALLOCATION_DESC defaultAllocationDesc
+	{
+		.Flags = D3D12MA::ALLOCATION_FLAG_NONE,
+		.HeapType = D3D12_HEAP_TYPE_GPU_UPLOAD,
+		.ExtraHeapFlags = D3D12_HEAP_FLAG_NONE,
+		.CustomPool = nullptr,
+		.pPrivateData = nullptr
+	};
+
+	result = m_pAllocator->CreateResource(
+		&defaultAllocationDesc,
+		&textureDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		&m_pImGuiFontTexture,
+		IID_NULL,
+		nullptr);
+	CORE_ASSERT(SUCCEEDED(result));
+
+	const D3D12_RESOURCE_DESC uploadBufferDesc
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = static_cast<UINT64>(fontTextureWidth * fontTextureHeight * 4),
+		.Height = 1,
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.SampleDesc = DXGI_SAMPLE_DESC
+		{
+			.Count = 1,
+			.Quality = 0
+		},
+		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+		.Flags = D3D12_RESOURCE_FLAG_NONE
+	};
+
+	D3D12MA::Allocation* pUploadBufferAllocation;
+
+	result = m_pAllocator->CreateResource(
+		&defaultAllocationDesc,
+		&uploadBufferDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		&pUploadBufferAllocation,
+		IID_NULL,
+		nullptr);
+	CORE_ASSERT(SUCCEEDED(result));
+
+	const D3D12_RANGE uploadBufferMapRange = { 0, 0 };
+	void* pMappedUploadBuffer = nullptr;
+
+	result = pUploadBufferAllocation->GetResource()->Map(
+		0,
+		&uploadBufferMapRange,
+		&pMappedUploadBuffer);
+	CORE_ASSERT(SUCCEEDED(result));
+
+	memcpy(
+		pMappedUploadBuffer,
+		pFontTextureData,
+		fontTextureWidth * fontTextureHeight * 4);
+
+	pUploadBufferAllocation->GetResource()->Unmap(0, nullptr);
+
+	const D3D12_TEXTURE_COPY_LOCATION srcCopyLocation
+	{
+		.pResource = pUploadBufferAllocation->GetResource(),
+		.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+		.PlacedFootprint = D3D12_PLACED_SUBRESOURCE_FOOTPRINT
+		{
+			.Offset = 0,
+			.Footprint = D3D12_SUBRESOURCE_FOOTPRINT
+			{
+				.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+				.Width = static_cast<UINT>(fontTextureWidth),
+				.Height = static_cast<UINT>(fontTextureHeight),
+				.Depth = 1,
+				.RowPitch = static_cast<UINT>(fontTextureWidth * 4)
+			}
+		}
+	};
+
+	const D3D12_TEXTURE_COPY_LOCATION dstCopyLocation
+	{
+		.pResource = m_pImGuiFontTexture->GetResource(),
+		.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+		.SubresourceIndex = 0
+	};
+
+	// Just used frame 0 for the initial copy.
+	FrameState& frame = m_frames[0];
+
+	frame.pCommandAllocator->Reset();
+	frame.pCommandList->Reset(frame.pCommandAllocator, nullptr);
+
+	frame.pCommandList->CopyTextureRegion(
+		&dstCopyLocation,
+		0,
+		0,
+		0,
+		&srcCopyLocation,
+		nullptr);
+
+	const D3D12_RESOURCE_BARRIER copyBarrier
+	{
+		.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+		.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE,
+		.Transition = D3D12_RESOURCE_TRANSITION_BARRIER
+		{
+			.pResource = m_pImGuiFontTexture->GetResource(),
+			.Subresource = 0,
+			.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST,
+			.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+		}
+	};
+
+	frame.pCommandList->ResourceBarrier(1, &copyBarrier);
+
+	frame.pCommandList->Close();
+
+	std::array<ID3D12CommandList* const, 1> ppCommandLists = { frame.pCommandList };
+	m_pCommandQueue->ExecuteCommandLists(1, ppCommandLists.data());
+
+	result = m_pCommandQueue->Signal(m_pFence, frame.fenceValue);
+	CORE_ASSERT(SUCCEEDED(result));
+
+	pUploadBufferAllocation->Release();
+
+	const D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc
+	{
+		.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		.NumDescriptors = 64u,
+		.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+		.NodeMask = 0u
+	};
+
+	result = m_pDevice->CreateDescriptorHeap(
+		&srvHeapDesc,
+		IID_PPV_ARGS(&m_pSRVHeap));
+	CORE_ASSERT(SUCCEEDED(result));
+
+	const D3D12_SHADER_RESOURCE_VIEW_DESC textureResourceViewDesc
+	{
+		.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+		.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+		.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+		.Texture2D = D3D12_TEX2D_SRV
+		{
+			.MostDetailedMip = 0,
+			.MipLevels = 1,
+			.PlaneSlice = 0,
+			.ResourceMinLODClamp = 0.0f
+		}
+	};
+
+	m_pDevice->CreateShaderResourceView(
+		m_pImGuiFontTexture->GetResource(),
+		&textureResourceViewDesc,
+		m_pSRVHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 
@@ -280,6 +473,9 @@ Renderer::~Renderer()
 	}
 
 	m_pFence->Release();
+
+	m_pImGuiFontTexture->Release();
+	m_pSRVHeap->Release();
 
 	for (FrameState& frameState : m_frames)
 	{
