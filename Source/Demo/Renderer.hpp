@@ -5,6 +5,7 @@
 #include "CoreLib/UtilMacros.hpp"
 
 // D3D12
+#define NOMINMAX
 #include <d3d12.h>
 #include <dxgi1_6.h>
 
@@ -71,6 +72,22 @@ private:
 
 	ID3D12DescriptorHeap* m_pSRVHeap;
 	D3D12MA::Allocation* m_pImGuiFontTexture;
+
+	// Persistently-mapped vertex/index buffers.
+	struct ImGuiFrameState
+	{
+		D3D12MA::Allocation* pVertexBufferAllocation;
+		D3D12MA::Allocation* pIndexBufferAllocation;
+		void* pMappedVertexBuffer;
+		void* pMappedIndexBuffer;
+		D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+		D3D12_INDEX_BUFFER_VIEW indexBufferView;
+	};
+
+	std::array<ImGuiFrameState, kNumFrames> m_imGuiFrames;
+
+	ID3D12RootSignature* m_pImGuiRootSignature;
+	ID3D12PipelineState* m_pImGuiPipelineState;
 
 	size_t m_frameNumber;
 
