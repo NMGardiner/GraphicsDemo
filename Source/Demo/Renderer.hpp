@@ -89,6 +89,9 @@ private:
 	ID3D12RootSignature* m_pImGuiRootSignature;
 	ID3D12PipelineState* m_pImGuiPipelineState;
 
+	D3D12MA::Allocation* m_pSceneTexture;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_SceneTextureDescriptor;
+
 	size_t m_frameNumber;
 
 }; // class Renderer

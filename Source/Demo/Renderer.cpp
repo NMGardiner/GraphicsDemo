@@ -48,6 +48,8 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 	, m_imGuiFrames({})
 	, m_pImGuiRootSignature(nullptr)
 	, m_pImGuiPipelineState(nullptr)
+	, m_pSceneTexture(nullptr)
+	, m_SceneTextureDescriptor({})
 	, m_frameNumber(0)
 {
 	HRESULT result = S_OK;
@@ -214,7 +216,7 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 		IID_PPV_ARGS(&m_pRTVHeap));
 	CORE_ASSERT(SUCCEEDED(result));
 
-	const D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapStart = m_pRTVHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapNextFree = m_pRTVHeap->GetCPUDescriptorHandleForHeapStart();
 	const uint32_t rtvHeapIncrement = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create 'kNumSwapchainBuffers' RTVs at the start of the heap.
@@ -238,9 +240,11 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 			}
 		};
 
-		m_swapchainRTVDescriptors[i].ptr = rtvHeapStart.ptr + (i * rtvHeapIncrement);
+		m_swapchainRTVDescriptors[i].ptr = rtvHeapNextFree.ptr;
 
 		m_pDevice->CreateRenderTargetView(m_swapchainRTVs[i], &rtvDesc, m_swapchainRTVDescriptors[i]);
+
+		rtvHeapNextFree.ptr += rtvHeapIncrement;
 	}
 
 	for (size_t i = 0; i < kNumFrames; i++)
@@ -271,6 +275,8 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 	CORE_ASSERT(SUCCEEDED(result));
 
 	m_pFenceEvent = CreateEvent(nullptr, false, false, nullptr);
+
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 	unsigned char* pFontTextureData;
 	int fontTextureWidth;
@@ -441,6 +447,9 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 		IID_PPV_ARGS(&m_pSRVHeap));
 	CORE_ASSERT(SUCCEEDED(result));
 
+	D3D12_CPU_DESCRIPTOR_HANDLE srvHeapNextFree = m_pSRVHeap->GetCPUDescriptorHandleForHeapStart();
+	const uint32_t srvHeapIncrement = m_pDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	const D3D12_SHADER_RESOURCE_VIEW_DESC textureResourceViewDesc
 	{
 		.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -458,7 +467,8 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 	m_pDevice->CreateShaderResourceView(
 		m_pImGuiFontTexture->GetResource(),
 		&textureResourceViewDesc,
-		m_pSRVHeap->GetCPUDescriptorHandleForHeapStart());
+		srvHeapNextFree);
+	srvHeapNextFree.ptr += srvHeapIncrement;
 
 	for (size_t i = 0; i < kNumFrames; i++)
 	{
@@ -602,17 +612,24 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 		}
 	};
 
-	const D3D12_ROOT_CONSTANTS rootConstants
+	const D3D12_ROOT_CONSTANTS vertexRootConstants
 	{
 		.ShaderRegister = 0,
 		.RegisterSpace = 0,
 		.Num32BitValues = 4
 	};
 
+	const D3D12_ROOT_CONSTANTS fragmentRootConstants
+	{
+		.ShaderRegister = 0,
+		.RegisterSpace = 0,
+		.Num32BitValues = 1
+	};
+
 	const D3D12_DESCRIPTOR_RANGE descriptorRange
 	{
 		.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-		.NumDescriptors = 1,
+		.NumDescriptors = 64u,
 		.BaseShaderRegister = 0,
 		.RegisterSpace = 0,
 		.OffsetInDescriptorsFromTableStart = 0
@@ -624,12 +641,17 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 		.pDescriptorRanges = &descriptorRange
 	};
 
-	const D3D12_ROOT_PARAMETER rootParameters[2] =
+	const D3D12_ROOT_PARAMETER rootParameters[3] =
 	{
 		{
 			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
-			.Constants = rootConstants,
+			.Constants = vertexRootConstants,
 			.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX
+		},
+		{
+			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
+			.Constants = fragmentRootConstants,
+			.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL
 		},
 		{
 			.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
@@ -657,7 +679,7 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 
 	const D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc
 	{
-		.NumParameters = 2,
+		.NumParameters = 3,
 		.pParameters = &rootParameters[0],
 		.NumStaticSamplers = 1,
 		.pStaticSamplers = &staticSamplerDesc,
@@ -781,6 +803,47 @@ Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
 		&guiPipelineDesc,
 		IID_PPV_ARGS(&m_pImGuiPipelineState));
 	CORE_ASSERT(SUCCEEDED(result));
+
+	const D3D12_RESOURCE_DESC sceneTextureDesc
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = static_cast<UINT64>(1920),
+		.Height = static_cast<UINT>(1080),
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+		.SampleDesc = DXGI_SAMPLE_DESC
+		{
+			.Count = 1,
+			.Quality = 0
+		},
+		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+	};
+
+	result = m_pAllocator->CreateResource(
+		&defaultAllocationDesc,
+		&sceneTextureDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		&m_pSceneTexture,
+		IID_NULL,
+		nullptr);
+	CORE_ASSERT(SUCCEEDED(result));
+
+	m_SceneTextureDescriptor = rtvHeapNextFree;
+	m_pDevice->CreateRenderTargetView(
+		m_pSceneTexture->GetResource(),
+		nullptr,
+		m_SceneTextureDescriptor);
+	rtvHeapNextFree.ptr += rtvHeapIncrement;
+
+	m_pDevice->CreateShaderResourceView(
+		m_pSceneTexture->GetResource(),
+		nullptr,
+		srvHeapNextFree);
+	srvHeapNextFree.ptr += srvHeapIncrement;
 }
 
 
@@ -800,6 +863,8 @@ Renderer::~Renderer()
 	}
 
 	m_pFence->Release();
+
+	m_pSceneTexture->Release();
 
 	m_pImGuiPipelineState->Release();
 	m_pImGuiRootSignature->Release();
@@ -868,9 +933,21 @@ void Renderer::Draw()
 	frameState.pCommandAllocator->Reset();
 
 	// Equivalent to beginning a command buffer.
-	frameState.pCommandList->Reset(frameState.pCommandAllocator, m_pImGuiPipelineState);
+	frameState.pCommandList->Reset(frameState.pCommandAllocator, nullptr);
 
 	ImGui::NewFrame();
+
+	ImGui::DockSpaceOverViewport();
+
+	if (ImGui::Begin("Scene", nullptr))
+	{
+		const ImVec2 windowSize = ImGui::GetContentRegionAvail();
+
+		ImGui::Image(static_cast<ImTextureRef>(1), windowSize);
+
+		ImGui::End();
+	}
+
 	ImGui::ShowDemoWindow();
 
 	ImGui::Render();
@@ -925,13 +1002,15 @@ void Renderer::Draw()
 	const double red = std::sin(static_cast<float>(m_frameNumber) * ((2.0f * std::numbers::pi) / 255.0f));
 
 	const float clearColour[4] = { static_cast<float>(red + 1.0f) / 2.0f, 0.0f, 1.0f, 1.0f };
-	frameState.pCommandList->ClearRenderTargetView(m_swapchainRTVDescriptors[imageIndex], clearColour, 0, nullptr);
+	frameState.pCommandList->ClearRenderTargetView(m_SceneTextureDescriptor, clearColour, 0, nullptr);
+
+	frameState.pCommandList->SetPipelineState(m_pImGuiPipelineState);
 
 	frameState.pCommandList->SetGraphicsRootSignature(m_pImGuiRootSignature);
 
 	frameState.pCommandList->SetDescriptorHeaps(1, &m_pSRVHeap);
 
-	frameState.pCommandList->SetGraphicsRootDescriptorTable(1, m_pSRVHeap->GetGPUDescriptorHandleForHeapStart());
+	frameState.pCommandList->SetGraphicsRootDescriptorTable(2, m_pSRVHeap->GetGPUDescriptorHandleForHeapStart());
 
 	// { translation.x, translation.y, scale.x, scale.y }
 	const float rootConstants[4] =
@@ -999,6 +1078,10 @@ void Renderer::Draw()
 			};
 
 			frameState.pCommandList->RSSetScissorRects(1, &scissorRect);
+
+			const uint32_t textureIndex = static_cast<uint32_t>(drawCommand.TexRef.GetTexID());
+
+			frameState.pCommandList->SetGraphicsRoot32BitConstants(1, 1, &textureIndex, 0);
 
 			frameState.pCommandList->DrawIndexedInstanced(
 				drawCommand.ElemCount,
