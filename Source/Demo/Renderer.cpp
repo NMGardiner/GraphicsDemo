@@ -813,7 +813,7 @@ Renderer::Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties)
 		.Height = static_cast<UINT>(1080),
 		.DepthOrArraySize = 1,
 		.MipLevels = 1,
-		.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+		.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
 		.SampleDesc = DXGI_SAMPLE_DESC
 		{
 			.Count = 1,
