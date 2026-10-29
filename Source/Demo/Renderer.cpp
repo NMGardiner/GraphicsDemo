@@ -16,6 +16,7 @@
 #include "imgui.h"
 
 // SDL
+#include "SDL3/SDL_properties.h"
 #include "SDL3/SDL_video.h"
 
 // System Headers
@@ -31,7 +32,7 @@
 namespace Demo
 {
 
-Renderer::Renderer(const SDL_Window* pWindow, uint32_t windowProperties)
+Renderer::Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties)
 	: m_pDebug(nullptr)
 	, m_pFactory(nullptr)
 	, m_pDevice(nullptr)

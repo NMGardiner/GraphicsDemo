@@ -12,6 +12,9 @@
 // D3D12MemoryAllocator
 #include "D3D12MemAlloc.h"
 
+// SDL
+#include "SDL3/SDL_properties.h"
+
 // System Headers
 #include <array>
 #include <cstdint>
@@ -41,7 +44,7 @@ class Renderer
 {
 
 public:
-	Renderer(const SDL_Window* pWindow, uint32_t windowProperties);
+	Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties);
 	~Renderer();
 
 	CORE_CLASS_CONSTRUCTORS_DELETE(Renderer);

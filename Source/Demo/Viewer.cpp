@@ -48,7 +48,7 @@ Viewer::Viewer() :
 	result = ImGui_ImplSDL3_InitForVulkan(m_pWindow);
 	CORE_ASSERT(result);
 
-	SDL_WindowID windowProperties = SDL_GetWindowProperties(m_pWindow);
+	SDL_PropertiesID windowProperties = SDL_GetWindowProperties(m_pWindow);
 	CORE_ASSERT(windowProperties != 0);
 
 	m_pRenderer = new Renderer(m_pWindow, windowProperties);
