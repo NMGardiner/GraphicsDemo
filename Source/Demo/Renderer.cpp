@@ -32,7 +32,7 @@
 namespace Demo
 {
 
-Renderer::Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties)
+Renderer::Renderer(SDL_Window* pWindow, SDL_PropertiesID windowProperties)
 	: m_pDebug(nullptr)
 	, m_pFactory(nullptr)
 	, m_pDevice(nullptr)
@@ -53,6 +53,14 @@ Renderer::Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties)
 	, m_SceneTextureDescriptor({})
 	, m_frameNumber(0)
 {
+	int windowWidth = 0;
+	int windowHeight = 0;
+	bool queryResult = SDL_GetWindowSizeInPixels(
+		pWindow,
+		&windowWidth,
+		&windowHeight);
+	CORE_ASSERT(queryResult);
+
 	HRESULT result = S_OK;
 
 	// TODO: Do we want any later interfaces? ID3D12Debug3 may be useful.
@@ -165,8 +173,8 @@ Renderer::Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties)
 
 	const DXGI_SWAP_CHAIN_DESC1 swapchainDesc
 	{
-		.Width = 2560u,
-		.Height = 1440u,
+		.Width = static_cast<UINT>(windowWidth),
+		.Height = static_cast<UINT>(windowHeight),
 		.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
 		.Stereo = FALSE,
 		.SampleDesc = { 1u, 0u },
@@ -805,12 +813,14 @@ Renderer::Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties)
 		IID_PPV_ARGS(&m_pImGuiPipelineState));
 	CORE_ASSERT(SUCCEEDED(result));
 
+	// Match the window resolution for rendering for now, but this
+	// should probably be configurable.
 	const D3D12_RESOURCE_DESC sceneTextureDesc
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = static_cast<UINT64>(1920),
-		.Height = static_cast<UINT>(1080),
+		.Width = static_cast<UINT64>(windowWidth),
+		.Height = static_cast<UINT>(windowHeight),
 		.DepthOrArraySize = 1,
 		.MipLevels = 1,
 		.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,

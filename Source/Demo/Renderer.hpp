@@ -44,7 +44,7 @@ class Renderer
 {
 
 public:
-	Renderer(const SDL_Window* pWindow, SDL_PropertiesID windowProperties);
+	Renderer(SDL_Window* pWindow, SDL_PropertiesID windowProperties);
 	~Renderer();
 
 	CORE_CLASS_CONSTRUCTORS_DELETE(Renderer);
