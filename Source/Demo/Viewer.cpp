@@ -26,7 +26,8 @@ namespace Demo
 
 Viewer::Viewer() :
 	m_pWindow(nullptr),
-	m_pRenderer(nullptr)
+	m_pRenderer(nullptr),
+	m_shutdownFlag(false)
 {
 	constexpr uint32_t kWindowWidth  = 2560u;
 	constexpr uint32_t kWindowHeight = 1440u;
@@ -73,24 +74,23 @@ void Viewer::EnterRunLoop()
 {
 	for (uint64_t frameNumber = 0llu; ; ++frameNumber)
 	{
-		bool recievedExitEvent = false;
-
 		SDL_Event event = {};
 
 		while (SDL_PollEvent(&event))
 		{
 			ImGui_ImplSDL3_ProcessEvent(&event);
 
-			if (event.type == SDL_EVENT_QUIT)
+			HandleEvent(event);
+
+			if (m_shutdownFlag)
 			{
-				recievedExitEvent = true;
 				break;
 			}
 
 			// Further event processing.
 		}
 
-		if (recievedExitEvent)
+		if (m_shutdownFlag)
 		{
 			break;
 		}
@@ -101,6 +101,22 @@ void Viewer::EnterRunLoop()
 
 		m_pRenderer->Draw();
 	}
+}
+
+
+
+void Viewer::HandleEvent(const SDL_Event& event)
+{
+	switch (event.type)
+	{
+		case SDL_EVENT_QUIT:
+			m_shutdownFlag = true;
+			break;
+
+		default:
+			// Unhandled events.
+			break;
+	};
 }
 
 } // namespace Demo

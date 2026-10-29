@@ -10,6 +10,7 @@
 // Forward Declarations
 
 struct SDL_Window;
+union SDL_Event;
 
 
 
@@ -28,8 +29,13 @@ public:
 	void EnterRunLoop();
 
 private:
+	void HandleEvent(const SDL_Event& event);
+
+private:
 	SDL_Window* m_pWindow;
 	Renderer* m_pRenderer;
+
+	bool m_shutdownFlag;
 
 }; // class Viewer
 
