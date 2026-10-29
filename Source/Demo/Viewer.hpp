@@ -9,7 +9,7 @@
 
 // Forward Declarations
 
-typedef struct SDL_Window SDL_Window;
+struct SDL_Window;
 
 
 
