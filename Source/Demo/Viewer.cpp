@@ -45,7 +45,7 @@ Viewer::Viewer() :
 	// TODO: Custom SDL3 backend too?
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	result = ImGui_ImplSDL3_InitForVulkan(m_pWindow);
+	result = ImGui_ImplSDL3_InitForD3D(m_pWindow);
 	CORE_ASSERT(result);
 
 	SDL_PropertiesID windowProperties = SDL_GetWindowProperties(m_pWindow);
